@@ -1,0 +1,120 @@
+body {
+    background-color: #EEFFEE;
+    margin: 10px;
+}
+
+.fa {
+    text-align: right;
+}
+
+tr.won {
+    background-color: #90EE90;
+}
+td.won {
+    background-color: #90EE90;
+}
+td.lost {
+    background-color: #F08080;
+}
+.good {
+    background-color: #90EE90;
+}
+.odds2 {
+    background-color: #90EE90;
+}
+.odds3 {
+    background-color: #B0E0E6;
+}
+.odds4 {
+    background-color: #B0E0E6;
+}
+.odds5 {
+    background-color: #B0E0E6;
+}
+.odds6 {
+    background-color: #FFFACD;
+}
+.odds7 {
+    background-color: #FFFACD;
+}
+.odds8 {
+    background-color: #FFFACD;
+}
+.odds9 {
+    background-color: #FFFACD;
+}
+.odds10 {
+    background-color: #F08080;
+}
+.odds11 {
+    background-color: #F08080;
+}
+.odds12 {
+    background-color: #F08080;
+}
+.odds13 {
+    background-color: #F08080;
+}
+.bad {
+    background-color: #F08080;
+}
+.dangerous {
+    background-color: #FF7900;
+}
+.warning {
+    background-color: #FFF44F;
+}
+.complicated {
+    background-color: #FFF44F;
+}
+.error {
+    background-color: #FF0000;
+    color: white;
+}
+
+th {
+    overflow: hidden;
+    white-space: nowrap;
+}
+td {
+    overflow: hidden;
+    white-space: nowrap;
+}
+.foodname {
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 60px;
+}
+.piratefoodFA {
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 60px;
+}
+
+.changed {
+    font-weight: bold;
+}
+
+form {
+    display: block;
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+.vue-chart div {
+    overflow: hidden !important;
+}
+
+#options td {
+    padding-right: 100px;
+}
+
+.timestamp-span {
+  margin-right: 20px;
+}
+
+.nfctextarea {
+  min-height: 100px;
+  resize: none;
+  vertical-align: text-top;
+}

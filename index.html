@@ -1,0 +1,317 @@
+<head>
+    <title>NeoFoodClub</title>
+    
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <!--link rel="shortcut icon" href="/favicon.png"-->
+</head>
+
+<script src="jquery-3.4.1.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+<script src="vue.js"></script>
+<script src="js.cookie.min.js"></script>
+
+<div id="el">
+    <label>Round
+        <input id="round-number" type="number" min="1" max="99999" style="width: 60px" v-model="round">
+    </label>
+    <span style="font-size: 10px">
+        <span class="timestamp-span" :class="timestampClass()">Data from {{displayAsDate(timestamp)}}</span>
+        <span class="timestamp-span" :class="lastUpdateClass()">Last Update {{displayAsDate(lastUpdate)}}</span>
+        <span>Last Change {{displayAsDate(lastChange)}}</span>
+    </span>
+    
+    <br>
+    <table id="options">
+        <tr>
+            <td><label>Normal Mode: <input type="radio" v-model="displayMode" value="normal"></label></td>
+            <td><label>FA details: <input type="checkbox" v-model="showFAExplanation"></label></td>
+        </tr>
+        <tr>
+            <td><label>Custom Mode: <input type="radio" v-model="displayMode" value="custom"></label></td>
+            <td><label>Odds Timeline: <input type="checkbox" v-model="showOddsTimeline"></label></td>
+        </tr>
+        <tr>
+            <td><label>Dropdown Mode: <input type="radio" v-model="displayMode" value="dropdown"></label></td>
+        </tr>
+    </table>
+
+    <br><input id="maxter" type="button" value="Max TER"/><br>
+
+    <table border="1" v-show="displayMode!=='dropdown'">
+        <thead>
+            <tr>
+                <th>Arena</th>
+                <th>Ratio</th>
+                <th>Pirate</th>
+                <th>Min Prob</th>
+                <th>Max Prob</th>
+                <th>Std Prob</th>
+                <th v-show="displayMode==='custom'">Custom</th>
+                <th v-show="displayMode==='custom'">Used</th>
+                <th>Payout</th>
+                <th>FA</th>
+                <th colspan="10" v-show="showFAExplanation">FA Explanation</th>
+                <th>Open</th>
+                <th>Current</th>
+                <th v-show="displayMode==='custom'">Custom</th>
+                <th v-show="showOddsTimeline">Timeline</th>
+                <th v-for="(bet,betNum) in bets">Bet {{betNum}}</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody v-for="(arenaName, arenaId) in arenas">
+            <tr>
+                <td rowspan="5">{{arenaName}}</td>
+                <td rowspan="5">{{displayAsPercentage(arenaRatios[arenaId], 1)}}</td>
+                <td colspan="6"></td>
+                <td colspan="2" v-show="displayMode==='custom'"></td>
+                <td v-for="foodId in foods[arenaId]" v-show="showFAExplanation" class="foodname">{{getFoodName(foodId)}}</td>
+                <td colspan="2"></td>
+                <td colspan="1" v-show="displayMode==='custom'"></td>
+                <td v-show="showOddsTimeline"></td>
+                <td v-for="(bet,betNum) in bets">
+                    <input v-model.number="bets[betNum][arenaId]" :id="'bet'+betNum+arenaId+'0'" :name="'bet'+betNum+arenaId" value=0 type="radio">
+                </td>
+                <td>
+                    <button v-on:click="tenBet(arenaId, 0)">10-bet</button>
+                </td>
+            </tr>
+            <tr v-for="(pirateId, pirateIndex) in pirates[arenaId]" v-bind:class="hasPirateWonClass(arenaId, pirateIndex)">
+                <td v-bind:class="'odds'+openingOdds[arenaId][pirateIndex+1]">{{getPirateName(pirateId)}}</td>
+                <td>{{displayAsPercentage(probabilities.min[arenaId][pirateIndex+1],1)}}</td>
+                <td>{{displayAsPercentage(probabilities.max[arenaId][pirateIndex+1],1)}}</td>
+                <td>{{displayAsPercentage(probabilities.std[arenaId][pirateIndex+1],1)}}</td>
+                <td v-show="displayMode==='custom'">
+                    <input v-model.number="customProbabilities[arenaId][pirateIndex+1]" style="width: 100px" type="number" step="any">
+                </td>
+                <td v-show="displayMode==='custom'">{{displayAsPercentage(probabilities.used[arenaId][pirateIndex+1],1)}}</td>
+                <td v-bind:class="piratePayoutStyle(piratePayouts[arenaId][pirateIndex+1])">{{displayAsPercentage(piratePayouts[arenaId][pirateIndex+1],1)}}</td>
+                <td class="fa">{{displayAsPlusMinus(pirateFAs[arenaId][pirateIndex])}}</td>
+                <th v-for="foodId in foods[arenaId]" v-show="showFAExplanation" :class="displayFAFoodPirateClass(pirateId,foodId)">{{displayFAFoodPirate(pirateId,foodId)}}</th>
+                <td>{{openingOdds[arenaId][pirateIndex+1]}}:1</td>
+                <td v-bind:class="haveOddsChanged(arenaId,pirateIndex)?'changed':''">{{currentOdds[arenaId][pirateIndex+1]}}:1</td>
+                <td v-show="displayMode==='custom'">
+                    <input v-model.number="customOdds[arenaId][pirateIndex+1]" min="2" max="13" style="width: 50px" type="number">
+                </td>
+                <td v-show="showOddsTimeline">
+                    <vue-chart chart-type="Timeline" :columns="['string','string',{type:'string', role:'tooltip'},'datetime','datetime']" :rows="pirateOddsTimelines[arenaId][pirateIndex]"
+                        :options="{width:300,height:16,timeline:{showRowLabels:false,barLabelStyle:{fontSize:7}},hAxis:{textPosition:'none'},avoidOverlappingGridLines:false}"></vue-chart>
+                </td>
+                <td v-for="(bet,betNum) in bets">
+                    <input v-model.number="bets[betNum][arenaId]" :id="'bet'+betNum+arenaId+(pirateIndex+1)" :name="'bet'+betNum+arenaId" :value="pirateIndex+1"
+                        type="radio">
+                </td>
+                <td>
+                    <button v-on:click="tenBet(arenaId, pirateIndex+1)">10-bet</button>
+                </td>
+            </tr>
+            <tr>
+                <td :colspan="computeColspan(11)"></td>
+            </tr>
+        </tbody>
+        <tbody>
+            <tr>
+                <td :colspan="computeColspan(0)" style="text-align: right">
+                    <label>Round
+                        <input type="number" min="1" max="99999" style="width: 60px" v-model="round">
+                    </label> -
+                    <label>Max Personal Bet:
+                        <input v-model.number="maxBet" min="0" max="999999" type="number" style="width: 70px" />NP</label>
+                    <input v-on:click="setAllBets" value="Set All Bets" type="button" />
+                    <input v-on:click="saveMaxBet" value="Save" type="button" />
+                </td>
+                <td v-for="(bet,betNum) in bets" v-bind:class="below0Bad(betAmounts[betNum])">
+                    <input v-model.number="betAmounts[betNum]" :id="'betAmounts'+betNum" min="0" max="999999" style="width: 70px" type="number">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table border="1" v-show="displayMode==='dropdown'">
+        <thead>
+            <tr>
+                <th v-for="(arenaName, arenaId) in arenas">{{arenaName}}</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td v-for="(arenaName, arenaId) in arenas">
+                    <table border="1">
+                        <tr v-for="(pirateId, pirateIndex) in pirates[arenaId]" v-bind:class="hasPirateWonClass(arenaId, pirateIndex)">
+                            <td v-bind:class="'odds'+openingOdds[arenaId][pirateIndex+1]">{{getPirateName(pirateId)}}</td>
+                            <td>{{openingOdds[arenaId][pirateIndex+1]}}:1</td>
+                            <td v-bind:class="haveOddsChanged(arenaId,pirateIndex)?'changed':''">{{currentOdds[arenaId][pirateIndex+1]}}:1</td>
+                        </tr>
+                    </table>
+                </td>
+                <td>
+                    <table border="0">
+                        <tr>
+                            <td>Max Bet</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input v-model.number="maxBet" min="0" max="999999" style="width: 80px" type="number" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input v-on:click="setAllBets" value="Set All Bets" type="button" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input v-on:click="saveMaxBet" value="Save" type="button" />
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </tbody>
+        <tbody>
+            <tr v-for="(bet,betNum) in bets">
+                <td v-for="(arenaName, arenaId) in arenas">
+                    <select v-model.number="bets[betNum][arenaId]" v-bind:class="'odds'+openingOdds[arenaId][bets[betNum][arenaId]]">
+                        <option v-bind:value="0"></option>
+                        <option v-for="(pirateId, pirateIndex) in pirates[arenaId]" v-bind:value="pirateIndex+1" v-bind:class="'odds'+openingOdds[arenaId][pirateIndex+1]">{{getPirateName(pirateId)}}</option>
+                    </select>
+                </td>
+                <td v-bind:class="below0Bad(betAmounts[betNum])">
+                    <input v-model.number="betAmounts[betNum]" min="0" max="999999" style="width: 80px" type="number" />
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <br>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Bet</th>
+                <th>Amount</th>
+                <th>Odds</th>
+                <th>Payoff</th>
+                <th>Probability</th>
+                <th>Expected Ratio</th>
+                <th>Net Expected</th>
+                <th>Maxbet</th>
+                <th v-for="(arenaName, arenaId) in arenas">{{arenaName}}</th>
+                <th>Submit</th>
+                <th v-show="moveMode!='none'">Move From</th>
+                <th v-show="moveMode!='none'">Move To</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr v-for="(bet,betNum) in bets" v-if="betEnabled[betNum]">
+                <td v-bind:class="hasBetWonClass(betNum)">{{betNum}}</td>
+                <td v-bind:class="below0Bad(betAmounts[betNum])+maxBetClass(betNum)">{{betAmounts[betNum]}}</td>
+                <td>{{betOdds[betNum]}}:1</td>
+                <td>{{betPayoffs[betNum]}}</td>
+                <td>{{displayAsPercentage(betProbabilities[betNum], 3)}}</td>
+                <td v-bind:class="below0Bad(betExpectedRatios[betNum]-1)">{{betExpectedRatios[betNum].toFixed(3)}}:1</td>
+                <td v-bind:class="below0Bad(betExpectedRatios[betNum]-1)">{{betNetExpected[betNum].toFixed(2)}}</td>
+                <td v-bind:class="maxBetClass(betNum)">{{betMaxBets[betNum]}}</td>
+                <td v-for="(arenaName, arenaId) in arenas" v-bind:class="'odds'+openingOdds[arenaId][bet[arenaId]]+' '+hasPirateWonClass(arenaId, bet[arenaId]-1)">
+                    {{getPirateName(pirates[arenaId][bet[arenaId]-1])}}
+                </td>
+                <td>
+                    <form action="http://www.neopets.com/pirates/process_foodclub.phtml" target="_blank" method="post" name="bet_form">
+                        <input v-for="(arenaName, arenaId) in arenas" v-if="bet[arenaId] != 0" v-bind:name="'winner'+(arenaId+1)" v-bind:value="pirates[arenaId][bet[arenaId]-1]"
+                            type="hidden">
+                        <input v-for="(arenaName, arenaId) in arenas" v-if="bet[arenaId] != 0" name="matches[]" v-bind:value="arenaId+1" type="hidden">
+                        <input name="bet_amount" v-bind:value="betAmounts[betNum]" type="hidden">
+                        <input name="total_odds" v-bind:value="betOdds[betNum]" type="hidden">
+                        <input name="winnings" v-bind:value="betPayoffs[betNum]" type="hidden">
+                        <input name="type" value="bet" type="hidden">
+                        <input value="Place this bet!" type="submit">
+                    </form>
+                </td>
+                <td v-show="moveMode!='none'">
+                    <input type="radio" v-model.number="moveFrom" v-bind:value="betNum">
+                </td>
+                <td v-show="moveMode!='none'">
+                    <input type="radio" v-model.number="moveTo" v-bind:value="betNum">
+                </td>
+            </tr>
+        </tbody>
+        <tbody>
+            <tr>
+                <th>Total:</th>
+                <th>{{totalAmount}} NP</th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th>{{TER.toFixed(3)}}</th>
+                <th v-bind:class="below0Bad(totalNetExpected)">{{totalNetExpected.toFixed(2)}}</th>
+                <td colspan=9>
+                    Change Bet Order:
+                    <label>None:
+                        <input type="radio" v-model="moveMode" value="none">
+                    </label> -
+                    <label>Swap:
+                        <input type="radio" v-model="moveMode" value="swap">
+                    </label> -
+                    <label>Insert:
+                        <input type="radio" v-model="moveMode" value="insert">
+                    </label>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table>
+        <tr>
+            <td>
+                <table border="1">
+                    <tr>
+                        <th>Odds</th>
+                        <th>Probability</th>
+                        <th>Cumulative</th>
+                        <th>Tail</th>
+                    </tr>
+                    <tr v-for="odds in payoutTables.odds">
+                        <td>{{odds.value}}</td>
+                        <td>{{displayAsPercentage(odds.probability, 3)}}</td>
+                        <td>{{displayAsPercentage(odds.cumulative, 3)}}</td>
+                        <td>{{displayAsPercentage(odds.tail, 3)}}</td>
+                    </tr>
+                </table>
+            </td>
+            <td>
+                <table border="1">
+                    <tr>
+                        <th>Winnings</th>
+                        <th>Probability</th>
+                        <th>Cumulative</th>
+                        <th>Tail</th>
+                    </tr>
+                    <tr v-for="winnings in payoutTables.winnings">
+                        <td>{{winnings.value}}</td>
+                        <td>{{displayAsPercentage(winnings.probability, 3)}}</td>
+                        <td>{{displayAsPercentage(winnings.cumulative, 3)}}</td>
+                        <td>{{displayAsPercentage(winnings.tail, 3)}}</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+    Direct link to this bet set:
+    <input onclick="this.select();document.execCommand('copy')" type="text" :value="directURL" readonly><br>
+    Direct link with bet amounts:
+    <input onclick="this.select();document.execCommand('copy')" type="text" :value="directURLWithBetAmounts" readonly><br><br>
+
+
+    <b>Code for Reddit</b><br>
+    Bets:
+    <textarea class="nfctextarea" onclick="this.select();document.execCommand('copy')" readonly>{{redditString}}</textarea> 
+    Stats:
+    <textarea class="nfctextarea" onclick="this.select();document.execCommand('copy')" readonly>{{redditStatsString}}</textarea><br><br>
+</div>
+
+<script src="neofoodclub.min.js"></script>
+<script src="install.js"></script> 
+<script src="scripts.js"></script>
+<hr>
+<span style="font-size: 12px">
+Originally written by <a href="https://www.reddit.com/user/au_travail/">/u/au_travail</a>; thank you for providing us an alternative to NeoDAQ<br>
+This website is maintained by <a href="https://www.reddit.com/user/KK20_CP/">/u/KK20_CP</a> (Discord: KK20 Tyler#8901); all inquiries should be directed to me as au_travail has stopped maintaining this project
+</span>
